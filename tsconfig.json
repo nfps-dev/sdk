@@ -1,0 +1,20 @@
+{
+	"extends": "@blake.regalia/tsconfig/tsconfig.node.json",
+
+	"compilerOptions": {
+		"baseUrl": ".",
+		"outDir": "dist",
+
+		"declaration": true,
+		"declarationDir": "dist",
+
+		"module": "CommonJS",
+		"verbatimModuleSyntax": false,
+
+		"sourceMap": false
+	},
+
+	"include": [
+		"src/**/*.ts",
+	]
+}
