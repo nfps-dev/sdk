@@ -2,7 +2,7 @@ import type {Dict} from '@blake.regalia/belt';
 
 import type { HtmlNodeCreator, SvgNodeCreator } from './web-types';
 
-const xmlFormat = require('xml-formatter');
+import xmlFormat from 'xml-formatter';
 import {JSDOM} from 'jsdom';
 
 
