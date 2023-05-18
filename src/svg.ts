@@ -38,8 +38,13 @@ export interface Context {
 	};
 };
 
+export interface MacroContext extends Context {
+	node: Element;
+	body: ChildNode[];
+}
 
-export type MacroProcessor = (g_context: Context) => (Element | string)[];
+
+export type MacroProcessor = (g_context: MacroContext) => (Element | ChildNode | string)[];
 
 export type PostProcesor = (g_context: Context) => void;
 
@@ -214,7 +219,7 @@ export function build(gc_build: BuildConfig): string {
 		const dm_elmt = d_doc.createElementNS(P_NS_XHTML, si_tag);
 
 		for(const [si_attr, s_value] of Object.entries(h_attrs as Dict || {})) {
-			dm_elmt.setAttributeNS(P_NS_XHTML, si_attr, s_value);
+			dm_elmt.setAttribute(si_attr, s_value);
 		}
 
 		for(const w_child of a_children || []) {
@@ -264,7 +269,11 @@ export function build(gc_build: BuildConfig): string {
 			}
 
 			// call handler
-			const a_inserts = f_macro(g_context);
+			const a_inserts = f_macro({
+				...g_context,
+				node: dm_macro,
+				body: Array.from(dm_macro.childNodes),
+			});
 
 			// insert replacements above macro node
 			for(const w_ins of a_inserts) {

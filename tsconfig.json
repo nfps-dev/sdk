@@ -3,13 +3,10 @@
 
 	"compilerOptions": {
 		"baseUrl": ".",
-		"outDir": "dist",
+		"outDir": "dist/mjs",
 
 		"declaration": true,
-		"declarationDir": "dist",
-
-		"module": "CommonJS",
-		"verbatimModuleSyntax": false,
+		"declarationDir": "dist/mjs",
 
 		"sourceMap": false
 	},
