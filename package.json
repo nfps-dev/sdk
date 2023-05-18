@@ -45,12 +45,12 @@
 		"xml-formatter": "^3.4.1"
 	},
 	"devDependencies": {
-		"@blake.regalia/belt": "^0.5.2",
-		"@blake.regalia/eslint-config-elite": "^0.2.4",
+		"@blake.regalia/belt": "^0.6.1",
+		"@blake.regalia/eslint-config-elite": "^0.2.6",
 		"@blake.regalia/tsconfig": "^0.1.2",
 		"@rollup/plugin-commonjs": "^25.0.0",
 		"@rollup/plugin-json": "^6.0.0",
-		"@types/node": "^20.2.0",
+		"@types/node": "^20.2.1",
 		"@types/uglify-js": "^3.17.1",
 		"@types/xml-formatter": "^2.1.1",
 		"rollup": "^3.22.0",
