@@ -45,8 +45,8 @@
 		"xml-formatter": "^3.4.1"
 	},
 	"devDependencies": {
-		"@blake.regalia/belt": "^0.6.1",
-		"@blake.regalia/eslint-config-elite": "^0.2.6",
+		"@blake.regalia/belt": "^0.6.2",
+		"@blake.regalia/eslint-config-elite": "^0.2.7",
 		"@blake.regalia/tsconfig": "^0.1.2",
 		"@rollup/plugin-commonjs": "^25.0.0",
 		"@rollup/plugin-json": "^6.0.0",
