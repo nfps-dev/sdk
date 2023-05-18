@@ -18,7 +18,7 @@
 		"email": "blake.regalia@gmail.com",
 		"url": "https://blake-regalia.com/"
 	},
-	"type": "commonjs",
+	"type": "module",
 	"main": "dist/cjs/main.js",
 	"module": "dist/mjs/main.js",
 	"types": "dist/mjs/main.d.ts",
