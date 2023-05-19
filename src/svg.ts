@@ -1,10 +1,12 @@
+
+import type {HtmlNodeCreator, SvgNodeCreator} from './web-types';
 import type {Dict, Promisable} from '@blake.regalia/belt';
 
-import type { HtmlNodeCreator, SvgNodeCreator } from './web-types';
-
-import xmlFormat from 'xml-formatter';
 import {JSDOM} from 'jsdom';
 import {optimize} from 'svgo';
+import xmlFormat from 'xml-formatter';
+
+import {minify_styles} from './minify-styles.js';
 
 
 interface NfpNodes {
@@ -37,7 +39,7 @@ export interface Context {
 		svg: SvgNodeCreator;
 		html: HtmlNodeCreator;
 	};
-};
+}
 
 export interface MacroContext extends Context {
 	node: Element;
@@ -82,9 +84,7 @@ export interface BuildConfig {
 	/**
 	 * Process <nfp:macro> tags that have been placed in the SVG source by their `nfp:id` attribute
 	 */
-	macros?: {
-		[si_macro: string]: MacroProcessor;
-	};
+	macros?: Record<string, MacroProcessor>;
 
 	/**
 	 * Hook to inspect/mutate the document in-place before it is serialized
@@ -108,7 +108,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 	} = gc_build;
 
 	// minification flag
-	let b_minify = gc_build.minify ?? 'development' !== process.env['NODE_ENV'];
+	const b_minify = gc_build.minify ?? 'development' !== process.env['NODE_ENV'];
 
 	// parse
 	const y_dom = new JSDOM(sx_xml, {
@@ -132,7 +132,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 		}
 
 		// ref/create metadata element
-		let dm_metadata = a_metadata[0] || d_doc.createElementNS(P_NS_SVG, 'metadata');
+		const dm_metadata = a_metadata[0] || d_doc.createElementNS(P_NS_SVG, 'metadata');
 
 		// refs/creates single nfp metadata element
 		const f_metadata = (si_tag: string) => {
@@ -145,7 +145,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 			}
 
 			// ref/create element
-			let dm_tag = a_tags[0] || d_doc.createElementNS(P_NS_NFP, si_tag);
+			const dm_tag = a_tags[0] || d_doc.createElementNS(P_NS_NFP, si_tag);
 
 			// move to top
 			dm_metadata.prepend(dm_tag);
@@ -190,9 +190,11 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 			if(!dm_self.getAttributeNS(P_NS_NFP, 'chain')) {
 				throw new Error(`<nfp:self> missing required 'nfp:chain' attribute`);
 			}
+
 			if(!dm_self.getAttributeNS(P_NS_NFP, 'contract')) {
 				throw new Error(`<nfp:self> missing required 'nfp:contract' attribute`);
 			}
+
 			if(!dm_self.getAttributeNS(P_NS_NFP, 'chain')) {
 				throw new Error(`<nfp:self> missing required 'nfp:token' attribute`);
 			}
@@ -203,6 +205,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 			if(!dm_web.getAttributeNS(P_NS_NFP, 'lcds')) {
 				console.warn(`<nfp:web> missing 'nfp:lcds' attribute`);
 			}
+
 			if(!dm_web.getAttributeNS(P_NS_NFP, 'comcs')) {
 				console.warn(`<nfp:web> missing 'nfp:comcs' attribute`);
 			}
@@ -218,7 +221,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 		const dm_elmt = d_doc.createElementNS(P_NS_SVG, si_tag) as unknown as SVGElement;
 
 		for(const [si_attr, s_value] of Object.entries(h_attrs as Dict || {})) {
-			dm_elmt.setAttribute(si_attr, s_value!);
+			dm_elmt.setAttribute(si_attr, s_value);
 		}
 
 		for(const w_child of a_children || []) {
@@ -306,7 +309,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 
 	// pre-svgo optimizations
 	if(b_minify) {
-
+		await minify_styles(d_doc);
 	}
 
 	// serialize
@@ -368,6 +371,8 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 				'reusePaths',
 				// 'sortAttrs',  // human can optimize better
 				'sortDefsChildren',
+
+				// minify_styles(),
 			],
 		});
 
