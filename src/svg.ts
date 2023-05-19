@@ -1,9 +1,10 @@
-import type {Dict} from '@blake.regalia/belt';
+import type {Dict, Promisable} from '@blake.regalia/belt';
 
 import type { HtmlNodeCreator, SvgNodeCreator } from './web-types';
 
 import xmlFormat from 'xml-formatter';
 import {JSDOM} from 'jsdom';
+import {optimize} from 'svgo';
 
 
 interface NfpNodes {
@@ -58,6 +59,11 @@ export interface BuildConfig {
 	source: string;
 
 	/**
+	 * Whether or not to minify the output (defaults to 'development' !== NODE_ENV)
+	 */
+	minify: boolean;
+
+	/**
 	 * Add/overwrite NFP metadata to the SVG
 	 */
 	metadata?: {
@@ -81,20 +87,28 @@ export interface BuildConfig {
 	};
 
 	/**
-	 * Perform custom post-processing on the document in-place before it is serialized
+	 * Hook to inspect/mutate the document in-place before it is serialized
 	 */
-	postProcess?: PostProcesor;
+	closeDocument?: PostProcesor;
+
+	/**
+	 * Hook to inspect/mutate the final output string
+	 */
+	postProcess?: (sx_code: string) => Promisable<string>;
 }
 
 export const P_NS_SVG = 'http://www.w3.org/2000/svg';
 export const P_NS_NFP = 'https://nfps.dev/';
 export const P_NS_XHTML = 'http://www.w3.org/1999/xhtml';
 
-export function build(gc_build: BuildConfig): string {
+export async function build(gc_build: BuildConfig): Promise<string> {
 	const {
 		source: sx_xml,
 		macros: h_macros,
 	} = gc_build;
+
+	// minification flag
+	let b_minify = gc_build.minify ?? 'development' !== process.env['NODE_ENV'];
 
 	// parse
 	const y_dom = new JSDOM(sx_xml, {
@@ -287,14 +301,86 @@ export function build(gc_build: BuildConfig): string {
 		}
 	}
 
-	// post-processing
-	gc_build.postProcess?.(g_context);
+	// close document
+	gc_build.closeDocument?.(g_context);
+
+	// pre-svgo optimizations
+	if(b_minify) {
+
+	}
 
 	// serialize
-	const sx_out = y_dom.serialize();
+	let sx_out = y_dom.serialize();
 
-	// return sx_out;
+	// svgo
+	if(b_minify) {
+		const g_result = optimize(sx_out, {
+			multipass: true,
+			plugins: [
+				'cleanupAttrs',
+				'cleanupEnableBackground',
+				// 'cleanupIds',  // id mangling handled elsewhere
+				'cleanupListOfValues',
+				'cleanupNumericValues',
+				'collapseGroups',
+				'convertColors',
+				'convertEllipseToCircle',
+				'convertPathData',
+				'convertShapeToPath',
+				// 'convertStyleToAttrs',  // can result in larger output
+				'convertTransform',
+				// 'inlineStyles', // handled by pre-opts
+				'mergePaths',
+				// 'minifyStyles',  // handled by pre-opts
+				'moveElemsAttrsToGroup',
+				// 'moveGroupAttrsToElems',  // can result in larger output?
+				// 'prefixIds',  // not needed
+				'removeComments',
+				'removeDesc',
+				'removeDoctype',
+				'removeEditorsNSData',
+				'removeEmptyAttrs',
+				'removeEmptyContainers',
+				'removeEmptyText',
+				{
+					name: 'removeHiddenElems',
+					params: {
+						displayNone: false,
+						opacity0: false,
+					},
+				},
+				// 'removeMetadata',  // crucial for nfp
+				'removeNonInheritableGroupAttrs',
+				// 'removeOffCanvasPaths',  // may be intentional
+				// 'removeTitle',  // used in standalone mode
+				{
+					name: 'removeUnknownsAndDefaults',
+					params: {
+						unknownContent: false,
+						unknownAttrs: false,
+					},
+				},
+				'removeUnusedNS',
+				'removeUselessDefs',
+				'removeUselessStrokeAndFill',
+				'removeViewBox',
+				'removeXMLProcInst',
+				'reusePaths',
+				// 'sortAttrs',  // human can optimize better
+				'sortDefsChildren',
+			],
+		});
 
+		sx_out = g_result.data;
+	}
 	// pretty-print
-	return xmlFormat(sx_out);
+	else {
+		sx_out = xmlFormat(sx_out);
+	}
+
+	// post-process
+	sx_out = await gc_build.postProcess?.(sx_out) ?? sx_out;
+
+	// return
+	return sx_out;
 }
