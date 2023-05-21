@@ -27,7 +27,8 @@
 		"import": "./dist/mjs/main.js"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"*.d.ts"
 	],
 	"scripts": {
 		"build:cjs": "tsc -p tsconfig.cjs.json",
@@ -48,19 +49,28 @@
 		"xml-formatter": "^3.4.1"
 	},
 	"devDependencies": {
-		"@blake.regalia/belt": "^0.6.3",
 		"@blake.regalia/eslint-config-elite": "^0.2.7",
 		"@blake.regalia/tsconfig": "^0.1.2",
 		"@rollup/plugin-commonjs": "^25.0.0",
 		"@rollup/plugin-json": "^6.0.0",
+		"@rollup/plugin-replace": "^5.0.2",
+		"@rollup/pluginutils": "^5.0.2",
+		"@types/estraverse": "^5.1.2",
+		"@types/estree": "^1.0.1",
 		"@types/node": "^20.2.1",
 		"@types/uglify-js": "^3.17.1",
 		"@types/xml-formatter": "^2.1.1",
 		"@typescript-eslint/parser": "^5.59.6",
+		"acorn": "^8.8.2",
+		"astring": "^1.8.5",
+		"dotenv": "^16.0.3",
 		"eslint": "^8.40.0",
+		"estraverse": "^5.3.0",
+		"magic-string": "^0.30.0",
 		"rollup": "^3.22.0",
 		"ts-toolbelt": "^9.6.0",
-		"typescript": "^5.0.4"
+		"typescript": "^5.0.4",
+		"vite": "^4.3.8"
 	},
 	"publishConfig": {
 		"access": "public"

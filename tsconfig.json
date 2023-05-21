@@ -13,5 +13,6 @@
 
 	"include": [
 		"src/**/*.ts",
+		"*.d.ts", "nfpx.ts",
 	]
 }
