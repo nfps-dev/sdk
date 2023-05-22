@@ -5,7 +5,9 @@ import type {
 	CallExpression,
 	Property,
 	ExportNamedDeclaration,
+	Node,
 } from 'estree';
+
 import type {PluginContext, Plugin as RollupPlugin} from 'rollup';
 
 import type {Plugin as VitePlugin} from 'vite';
@@ -222,7 +224,7 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 				f_error,
 			} = f_hooks(this, y_magic);
 
-			walk(y_ast, {
+			walk(y_ast as Node, {
 				enter(y_node, y_parent, si_prop, i_index): void {
 					// @ts-expect-error scope
 					if(y_node.scope) y_scope = y_node.scope;
