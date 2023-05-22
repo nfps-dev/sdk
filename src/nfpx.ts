@@ -1,4 +1,4 @@
-import type {PluginConfig} from './_types';
+import type {NfpModuleConfig} from './_types';
 import type {Dict} from '@blake.regalia/belt';
 import type {
 	BaseNode,
@@ -17,13 +17,6 @@ import {attachScopes, createFilter, makeLegalIdentifier} from '@rollup/pluginuti
 import * as astring from 'astring';
 import {walk} from 'estree-walker';
 import MagicString from 'magic-string';
-
-
-export interface ExportNfpWindowConfig extends PluginConfig {
-	id: string;
-}
-
-export interface ImportNfpWindowConfig extends PluginConfig {}
 
 const S_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -53,15 +46,15 @@ interface NfpxJson {
 	};
 }
 
-export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
-	const si_export = gc_export.id;
+export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
+	const si_export = gc_nfpm.id;
 	if(!si_export) {
 		throw new Error(`Must supply an 'id' option to nfpxWindow()`);
 	}
 
 	const si_export_identifier = identifier_for_module(si_export);
 
-	const f_filter = createFilter(gc_export.include ?? './**/*.ts', gc_export.exclude);
+	const f_filter = createFilter(gc_nfpm.include ?? './**/*.ts', gc_nfpm.exclude);
 
 	const h_nfpx_exports: Dict = {};
 
@@ -80,6 +73,12 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 		f_error: (s_msg: string, y_node?: BaseNode) => y_hook.error(s_msg, (y_node as any)?.start),
 		/* eslint-enable */
 	});
+
+	function add_export_symbol(s_alias: string): string {
+		const i_symbol = Object.keys(h_nfpx_exports).length;
+
+		return h_nfpx_exports[s_alias] = encode_symbol(i_symbol);
+	}
 
 	return {
 		name: 'nfpxWindow',
@@ -217,8 +216,6 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 
 			const y_magic = new MagicString(sx_code);
 
-			const b_sourcemap = !!gc_export.sourceMap;
-
 			const {
 				f_replace,
 				f_warn,
@@ -256,7 +253,7 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 									return f_error('Call to exportNfpx()` must pass an object literal expression');
 								}
 
-								// const a_export_pairs: string[] = [];
+								const a_export_pairs: string[] = [];
 
 								// each property in expr
 								for(const y_prop of y_arg.properties) {
@@ -268,12 +265,22 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 										return f_error(`${y_prop.kind} property not allowed in call to exportNfpx()`);
 									}
 
-									// a_export_pairs.push(astring.generate(y_prop.key)+':'+astring.generate(y_prop.value));
+									if('Identifier' !== y_prop.key.type) {
+										return f_error(`${y_prop.key.type} is not an identifier; All keys must be identifiers in call to exportNfpx()`);
+									}
+
+									// create/lookup id from alias
+									const si_alias = y_prop.key.name;
+									const si_symbol = add_export_symbol(si_alias);
+
+									a_export_pairs.push(si_symbol+':'+astring.generate(y_prop.value));
 								}
 
 								// f_replace(y_call, `Object.assign(window.${si_export_identifier}, {${a_export_pairs.join(',')}})`);
 
-								f_replace(y_call, `window.${si_export_identifier} = Object.assign(window.${si_export_identifier} || {}, ${astring.generate(y_arg)});`);
+								const sx_exports_object = `{${a_export_pairs.join(',')}}`;
+
+								f_replace(y_call, `window.${si_export_identifier} = Object.assign(window.${si_export_identifier} || {}, ${sx_exports_object});\n`);
 							}
 							// too many arguments
 							else {
@@ -315,7 +322,7 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 							// write the export annotation and window assignment expression
 							const sx_out = [
 								`window.${si_identifier} = {${a_encoded.join(', ')}};`,
-							].join('\n');
+							].join('\n')+'\n';
 
 							// replace declaration with window write
 							f_replace(y_decl, sx_out);
@@ -332,7 +339,11 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 
 			return {
 				code: y_magic.toString(),
-				map: null,
+				map: y_magic.generateMap({
+					hires: true,
+				}),
+
+				// map: null,
 				// map: b_sourcemap? y_magic.generateMap({
 				// 	hires: true,
 				// }): null,
@@ -357,7 +368,7 @@ export function nfpxWindow(gc_export: ExportNfpWindowConfig): VitePlugin {
 			};
 
 			// write nfp export map
-			await fs.writeFile(path.join(sr_outdir, `${gc_export.id}.nfpx.json`), JSON.stringify(g_exports, null, '\t'));
+			await fs.writeFile(path.join(sr_outdir, `${gc_nfpm.id}.nfpx.json`), JSON.stringify(g_exports, null, '\t'));
 		},
 	};
 }

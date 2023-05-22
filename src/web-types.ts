@@ -10,7 +10,7 @@ type OmitCapsU<s_test extends string> = L.UnionOf<OmitCapsL<U.ListOf<s_test>>>;
 
 
 type SvgElementProperties<d_element extends Element> = {
-	[si_key in O.SelectKeys<d_element, 
+	[si_key in O.SelectKeys<d_element,
 		| string
 		| DOMPointReadOnly
 		| SVGAnimatedBoolean
@@ -34,10 +34,15 @@ export type SvgNodeCreator = (
 	a_children?: (Node | string)[]
 ) => SVGElement;
 
+type SelectLowerStringKeys<h_object extends object> = Extract<keyof h_object, string> extends infer as_keys
+	? as_keys extends string
+		? OmitCapsU<as_keys>
+		: string
+	: string;
 
 type HtmlElementProperties<d_element extends Element, w_extra=never> = {
-	[si_key in OmitCapsU<O.SelectKeys<d_element, string>>]: string;
-}
+	[si_key in SelectLowerStringKeys<d_element>]: string;
+};
 
 export type HtmlNodeCreator = (
 	si_tag: keyof HTMLElementTagNameMap,

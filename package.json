@@ -57,7 +57,7 @@
 		"@rollup/pluginutils": "^5.0.2",
 		"@types/estraverse": "^5.1.2",
 		"@types/estree": "^1.0.1",
-		"@types/node": "^20.2.1",
+		"@types/node": "^20.2.3",
 		"@types/uglify-js": "^3.17.1",
 		"@types/xml-formatter": "^2.1.1",
 		"@typescript-eslint/parser": "^5.59.6",

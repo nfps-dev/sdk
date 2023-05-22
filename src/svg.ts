@@ -61,7 +61,7 @@ export interface BuildConfig {
 	source: string;
 
 	/**
-	 * Whether or not to minify the output (defaults to 'development' !== NODE_ENV)
+	 * Whether or not to minify the output (defaults to 'development' !== NFP_ENV)
 	 */
 	minify: boolean;
 
@@ -108,7 +108,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 	} = gc_build;
 
 	// minification flag
-	const b_minify = gc_build.minify ?? 'development' !== process.env['NODE_ENV'];
+	const b_minify = gc_build.minify ?? 'development' !== process.env['NFP_ENV'];
 
 	// parse
 	const y_dom = new JSDOM(sx_xml, {

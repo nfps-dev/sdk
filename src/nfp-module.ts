@@ -1,41 +1,79 @@
+import type {NfpModuleConfig} from './_types.js';
 import type {
+	OutputAsset,
 	OutputPlugin,
+	Plugin,
 } from 'rollup';
+
+import path from 'node:path';
 
 import resolve from '@rollup/plugin-node-resolve';
 
 import terser from '@rollup/plugin-terser';
-import typescript, {type RollupTypescriptPluginOptions} from '@rollup/plugin-typescript';
+import typescript from '@rollup/plugin-typescript';
 
 import filesize from 'rollup-plugin-filesize';
 import uglify from 'uglify-js';
 
-export interface MicroWebConfig extends Pick<
-	RollupTypescriptPluginOptions,
-	'include' | 'exclude' | 'tsconfig' | 'compilerOptions' | 'typescript' | 'transformers'
-> {
-}
+import {autoboot} from './dev-env.js';
+import {nfpxWindow} from './nfpx.js';
+import {DeclRewriter} from './rewrite-decls.js';
 
-export function microWeb(gc_microweb: MicroWebConfig={}): OutputPlugin[] {
+
+export function nfpModule(gc_nfpm: NfpModuleConfig): Plugin[] {
+	let p_entry = '';
+
 	return [
 		// node-style resolution
 		resolve({
 			browser: true,
 		}),
 
+		{
+			name: 'nfpx-primer',
+
+			buildStart(gc_opt) {
+				p_entry = 'string' === typeof gc_opt.input? gc_opt.input: (gc_opt.input as string[])[0];
+				p_entry = path.resolve(p_entry);
+			},
+
+			// resolveId(si_module, p_importer) {
+			// 	if(p_importer === p_entry && /^\.\.?\//.test(si_module)) {
+			// 		console.log(p_importer+': '+si_module);
+			// 	}
+			// },
+
+		},
+
+		// optoinal autoboot
+		autoboot(gc_nfpm),
+
+		// window exports
+		nfpxWindow(gc_nfpm),
+
 		// enable typescript
 		typescript({
 			sourceMap: true,
-			include: gc_microweb.include || ['src/**/*.ts'],
-			...gc_microweb.exclude? {exclude:gc_microweb.exclude}: {},
-			...gc_microweb.tsconfig? {tsconfig:gc_microweb.tsconfig}: {},
-			...gc_microweb.typescript? {typescript:gc_microweb.typescript}: {},
-			...gc_microweb.compilerOptions? {compilerOptions:gc_microweb.compilerOptions}: {},
-			...gc_microweb.transformers? {transformers:gc_microweb.transformers}: {},
+			include: gc_nfpm.include || ['src/**/*.ts'],
+			...gc_nfpm.exclude? {exclude:gc_nfpm.exclude}: {},
+			...gc_nfpm.tsconfig? {tsconfig:gc_nfpm.tsconfig}: {},
+			...gc_nfpm.typescript? {typescript:gc_nfpm.typescript}: {},
+			...gc_nfpm.compilerOptions? {compilerOptions:gc_nfpm.compilerOptions}: {},
+			transformers: {
+				...gc_nfpm.transformers,
+			},
 		}),
 
+		{
+			name: 'nfpx-declaration-rewriter',
+
+			generateBundle(gc_out, h_bundle) {
+				new DeclRewriter(p_entry, h_bundle as Record<string, OutputAsset>);
+			},
+		},
+
 		// minify using terser
-		...'development' !== process.env['NODE_ENV']? [
+		...'development' !== process.env['NFP_ENV']? [
 			terser({
 				compress: {
 					passes: 3,

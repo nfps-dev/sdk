@@ -1,4 +1,4 @@
 export * from './svg.js';
 export * from './nfpx.js';
-export * from './autoboot.js';
-export * from './microweb.js';
+export * from './dev-env.js';
+export * from './nfp-module.js';
