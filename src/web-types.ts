@@ -28,11 +28,14 @@ type SvgElementProperties<d_element extends Element> = {
 	>]?: string;
 };
 
-export type SvgNodeCreator = (
-	si_tag: keyof SVGElementTagNameMap,
-	h_attrs?: SvgElementProperties<SVGElementTagNameMap[typeof si_tag]>,
+export type SvgNodeCreator = <
+	si_tag extends keyof SVGElementTagNameMap,
+	dm_element extends SVGElementTagNameMap[si_tag],
+>(
+	si_tag: si_tag,
+	h_attrs?: SvgElementProperties<dm_element>,
 	a_children?: (Node | string)[]
-) => SVGElement;
+) => dm_element;
 
 type SelectLowerStringKeys<h_object extends object> = Extract<keyof h_object, string> extends infer as_keys
 	? as_keys extends string
@@ -44,8 +47,12 @@ type HtmlElementProperties<d_element extends Element, w_extra=never> = {
 	[si_key in SelectLowerStringKeys<d_element>]?: string;
 };
 
-export type HtmlNodeCreator = (
-	si_tag: keyof HTMLElementTagNameMap,
-	h_attrs?: HtmlElementProperties<HTMLElementTagNameMap[typeof si_tag]>,
+export type HtmlNodeCreator = <
+	si_tag extends keyof HTMLElementTagNameMap,
+>(
+	si_tag: si_tag,
+	h_attrs?: si_tag extends keyof HTMLElementTagNameMap
+		? HtmlElementProperties<HTMLElementTagNameMap[si_tag]>
+		: HtmlElementProperties<HTMLElement>,
 	a_children?: (Node | string)[]
-) => HTMLElement;
+) => si_tag extends keyof HTMLElementTagNameMap? HTMLElementTagNameMap[si_tag]: HTMLElement;

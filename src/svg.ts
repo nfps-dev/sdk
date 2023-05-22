@@ -217,7 +217,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 
 
 	// svg node creator
-	const f_svg: SvgNodeCreator = (si_tag, h_attrs, a_children) => {
+	const f_svg = ((si_tag, h_attrs, a_children) => {
 		const dm_elmt = d_doc.createElementNS(P_NS_SVG, si_tag) as unknown as SVGElement;
 
 		for(const [si_attr, s_value] of Object.entries(h_attrs as Dict || {})) {
@@ -229,10 +229,10 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 		}
 
 		return dm_elmt;
-	};
+	}) as SvgNodeCreator;
 
 	// html node creator
-	const f_html: HtmlNodeCreator = (si_tag, h_attrs, a_children) => {
+	const f_html = ((si_tag, h_attrs, a_children) => {
 		const dm_elmt = d_doc.createElementNS(P_NS_XHTML, si_tag);
 
 		for(const [si_attr, s_value] of Object.entries(h_attrs as Dict || {})) {
@@ -244,7 +244,7 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 		}
 
 		return dm_elmt;
-	};
+	}) as HtmlNodeCreator;
 
 	// nfp node creator
 	const f_nfp: NfpNodeCreator = (si_tag, h_attrs, a_children) => {
