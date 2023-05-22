@@ -68,7 +68,7 @@ export function nfpModule(gc_nfpm: NfpModuleConfig): Plugin[] {
 			name: 'nfpx-declaration-rewriter',
 
 			generateBundle(gc_out, h_bundle) {
-				new DeclRewriter(p_entry, h_bundle as Record<string, OutputAsset>, gc_nfpm);
+				new DeclRewriter(p_entry, h_bundle as Record<string, OutputAsset>, gc_nfpm, this);
 			},
 		},
 

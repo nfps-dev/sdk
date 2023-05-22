@@ -1,6 +1,6 @@
 import type {NfpModuleConfig} from './_types';
 import type {SyntaxKindLookup} from './syntax-kinds';
-import type {OutputAsset} from 'rollup';
+import type {OutputAsset, PluginContext} from 'rollup';
 import type {
 	LiteralExpression,
 	Node,
@@ -130,7 +130,8 @@ export class DeclRewriter {
 	constructor(
 		protected _si_entry: string,
 		protected _h_bundle: Record<string, OutputAsset>,
-		protected _gc_nfpm: NfpModuleConfig
+		protected _gc_nfpm: NfpModuleConfig,
+		protected _y_plugin: PluginContext
 	) {
 		const si_entry_decl = this._si_entry_decl = path.basename(_si_entry, '.ts')+'.d.ts';
 
@@ -155,7 +156,13 @@ export class DeclRewriter {
 			// rename to align with id
 			const si_expect = _gc_nfpm.id+'.d.ts';
 			if(si_expect !== si_entry_decl) {
-				_h_bundle[si_expect] = _h_bundle[si_entry_decl];
+				const y_file = _h_bundle[si_entry_decl];
+				_y_plugin.emitFile({
+					type: 'asset',
+					fileName: si_expect,
+					source: y_file.source,
+					needsCodeReference: y_file.needsCodeReference,
+				});
 				delete _h_bundle[si_entry_decl];
 			}
 		}
