@@ -41,7 +41,7 @@ type SelectLowerStringKeys<h_object extends object> = Extract<keyof h_object, st
 	: string;
 
 type HtmlElementProperties<d_element extends Element, w_extra=never> = {
-	[si_key in SelectLowerStringKeys<d_element>]: string;
+	[si_key in SelectLowerStringKeys<d_element>]?: string;
 };
 
 export type HtmlNodeCreator = (
