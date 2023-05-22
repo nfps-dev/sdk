@@ -6,6 +6,7 @@ import type {
 	Property,
 	ExportNamedDeclaration,
 	Node,
+	Identifier,
 } from 'estree';
 
 import type {PluginContext, Plugin as RollupPlugin} from 'rollup';
@@ -58,7 +59,12 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 
 	const f_filter = createFilter(gc_nfpm.include ?? './**/*.ts', gc_nfpm.exclude);
 
-	const h_nfpx_exports: Dict = {};
+	const h_entries: Dict<Dict<{
+		alias: string;
+		symbol: string;
+		init?: string;
+		dynamic?: boolean;
+	}>> = {};
 
 	let a_entries: string[] = [];
 
@@ -76,11 +82,6 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 		/* eslint-enable */
 	});
 
-	function add_export_symbol(s_alias: string): string {
-		const i_symbol = Object.keys(h_nfpx_exports).length;
-
-		return h_nfpx_exports[s_alias] = encode_symbol(i_symbol);
-	}
 
 	return {
 		name: 'nfpxWindow',
@@ -141,7 +142,8 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 			} = f_hooks(this);
 
 			if(si_module === SI_NFPX_EXPORT) {
-				return 'console.log("nfpx-export")';
+				// nfpx-export
+				return '';
 			}
 			else if(si_module.startsWith(SI_NFPX_IMPORT)) {
 				const si_nfpx = si_module.slice(SI_NFPX_IMPORT.length);
@@ -186,7 +188,7 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 					const {${a_destructures.join(',')}} = window.${identifier_for_module(si_nfpx)};
 
 					export {${a_aliases.join(',')}};
-				`;
+				`.split(/\s*\n\s*/g).join('\n');
 			}
 			else if(si_module.endsWith(SI_SUFFIX)) {
 				const si_entry = si_module.slice(0, -SI_SUFFIX.length);
@@ -209,8 +211,10 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 		},
 
 		// for exporting
-		transform(sx_code, p_file) {
-			if(!f_filter(p_file)) return;
+		transform(sx_code, si_module) {
+			if(!f_filter(si_module)) return;
+
+			const b_entry = a_entries.includes(si_module);
 
 			const y_ast = this.parse(sx_code);
 
@@ -223,6 +227,31 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 				f_warn,
 				f_error,
 			} = f_hooks(this, y_magic);
+
+			h_entries[si_module] = {};
+			const h_exports = h_entries[si_module];
+
+			function dynamic_export(s_alias: string) {
+				const i_symbol = Object.keys(h_entries).length;
+
+				return (h_exports[s_alias] = {
+					dynamic: true,
+					alias: s_alias,
+					symbol: encode_symbol(i_symbol),
+				}).symbol;
+			}
+
+			function add_export(s_alias: string, s_init: string) {
+				const i_symbol = Object.keys(h_exports).length;
+
+				const si_symbol = encode_symbol(i_symbol);
+
+				return h_exports[s_alias] = {
+					alias: s_alias,
+					symbol: si_symbol,
+					init: s_init,
+				};
+			}
 
 			walk(y_ast as Node, {
 				enter(y_node, y_parent, si_prop, i_index): void {
@@ -273,15 +302,18 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 
 									// create/lookup id from alias
 									const si_alias = y_prop.key.name;
-									const si_symbol = add_export_symbol(si_alias);
 
+									// declare dynamic export
+									const si_symbol = dynamic_export(si_alias);
+
+									// add serialized code to list
 									a_export_pairs.push(si_symbol+':'+astring.generate(y_prop.value));
 								}
 
-								// f_replace(y_call, `Object.assign(window.${si_export_identifier}, {${a_export_pairs.join(',')}})`);
-
+								// serialize object literal
 								const sx_exports_object = `{${a_export_pairs.join(',')}}`;
 
+								// replace call with merge
 								f_replace(y_call, `window.${si_export_identifier} = Object.assign(window.${si_export_identifier} || {}, ${sx_exports_object});\n`);
 							}
 							// too many arguments
@@ -292,42 +324,84 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 					}
 					// export expression
 					else if('ExportNamedDeclaration' === y_node.type) {
-						const y_decl = y_node as ExportNamedDeclaration;
+						// onnly replace exports of the entry file
+						if(!b_entry) return;
 
-						// only for export specifier group
-						if(!y_decl.declaration) {
+						const y_export = y_node;
+
+						// single entry
+						if(y_export.declaration) {
+							const y_decl = y_export.declaration;
+							switch(y_decl.type) {
+								case 'VariableDeclaration': {
+									if('const' !== y_decl.kind) {
+										return f_error('Export variable must be const', y_decl);
+									}
+
+									for(const y_var of y_decl.declarations) {
+										add_export((y_var.id as Identifier).name, astring.generate(y_var.init!));
+									}
+
+									break;
+								}
+
+								case 'FunctionDeclaration': {
+									add_export(y_decl.id!.name, astring.generate(y_decl));
+									break;
+								}
+
+								case 'ClassDeclaration': {
+									add_export(y_decl.id!.name, astring.generate(y_decl));
+									break;
+								}
+
+								default: {
+									return f_error(`Unsupported export type`, y_decl);
+								}
+							}
+
+							// replace export with declaration
+							f_replace(y_export, astring.generate(y_decl));
+						}
+						// specifier group
+						else {
 							const a_exports: {
 								local: string;
 								alias: string;
 							}[] = [];
 
 							// each specifier
-							for(const y_spec of y_decl.specifiers) {
+							for(const y_spec of y_export.specifiers) {
 								a_exports.push({
 									local: y_spec.local.name,
 									alias: y_spec.exported.name,
 								});
+
+								add_export(y_spec.exported.name, y_spec.local.name);
 							}
 
-							// ammend map
-							Object.assign(h_nfpx_exports, a_exports.reduce((h_out, g_export, i_export) => ({
-								...h_out,
-								[g_export.alias]: encode_symbol(i_export),
-							}), {}));
+							// // ammend map
+							// Object.assign(h_nfpx_exports, a_exports.reduce((h_out, g_export, i_export) => ({
+							// 	...h_out,
+							// 	[g_export.alias]: encode_symbol(i_export),
+							// }), {}));
 
-							// create the encoded symbols object literal map
-							const a_encoded = a_exports.map((g_export, i_export) => encode_symbol(i_export)+':'+g_export.local);
+							// // create the encoded symbols object literal map
+							// const a_encoded = a_exports.map((g_export, i_export) => encode_symbol(i_export)+':'+g_export.local);
 
-							// prep the window identifier
-							const si_identifier = makeLegalIdentifier('nfpx_'+path.parse(p_file).name);
+							// // prep the window identifier
+							// const si_identifier = makeLegalIdentifier('nfpx_'+path.parse(p_file).name);
 
-							// write the export annotation and window assignment expression
-							const sx_out = [
-								`window.${si_identifier} = {${a_encoded.join(', ')}};`,
-							].join('\n')+'\n';
+							// // write the export annotation and window assignment expression
+							// const sx_out = [
+							// 	`window.${si_identifier} = {${a_encoded.join(', ')}};`,
+							// ].join('\n')+'\n';
 
-							// replace declaration with window write
-							f_replace(y_decl, sx_out);
+							// // replace declaration with window write
+							// f_replace(y_export, sx_out);
+
+							// remove export
+							f_replace(y_export, '');
 						}
 					}
 				},
@@ -339,21 +413,26 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 				},
 			});
 
+			// serialize to code
+			if(b_entry) {
+				const a_encoded = Object.values(h_entries[si_module])
+					.filter(g => !g.dynamic)
+					.map(g => `${g.symbol}: ${g.init || 'void 0'}`);
+
+				// append exports
+				y_magic.append(`window.${si_export_identifier} = {\n${a_encoded.join(',\n')}\n};`);
+			}
+
 			return {
 				code: y_magic.toString(),
 				map: y_magic.generateMap({
 					hires: true,
 				}),
-
-				// map: null,
-				// map: b_sourcemap? y_magic.generateMap({
-				// 	hires: true,
-				// }): null,
 			};
 		},
 
 		// for exporting
-		async generateBundle(gc_output, g_bundle) {
+		async generateBundle(gc_output, h_bundle) {
 			let sr_outdir = '';
 
 			if(gc_output.dir) {
@@ -363,160 +442,24 @@ export function nfpxWindow(gc_nfpm: NfpModuleConfig): VitePlugin {
 				sr_outdir = path.dirname(gc_output.file);
 			}
 
-			const g_exports: NfpxJson = {
-				exports: {
-					'.': h_nfpx_exports,
-				},
-			};
+			debugger;
+			for(const si_entry of a_entries) {
+				const g_chunk = h_bundle[si_entry];
 
-			// write nfp export map
-			await fs.writeFile(path.join(sr_outdir, `${gc_nfpm.id}.nfpx.json`), JSON.stringify(g_exports, null, '\t'));
+				if('chunk' === g_chunk.type) {
+					const g_exports: NfpxJson = {
+						exports: {
+							'.': Object.values(h_entries[si_entry]).reduce((h_out, g_export) => ({
+								...h_out,
+								[g_export.alias]: g_export.symbol,
+							}), {}),
+						},
+					};
+
+					// write nfp export map
+					await fs.writeFile(path.join(sr_outdir, `${gc_nfpm.id}.nfpx.json`), JSON.stringify(g_exports, null, '\t'));
+				}
+			}
 		},
 	};
 }
-
-// export function importNfpWindow(gc_import: ImportNfpWindowConfig={}): VitePlugin {
-// 	const f_filter = createFilter(gc_import.include, gc_import.exclude);
-
-// 	const f_test = (si: string) => !/\.nfpx(\?)?$/.test(si);
-
-// 	return {
-// 		name: 'importNfpWindow',
-// 		enforce: 'pre',
-
-// 		async resolveId(si_specifier, si_importer, gc_resolve) {
-// 			if(si_specifier === SI_NFPX_EXPORT) {
-// 				return {
-// 					id: SI_NFPX_EXPORT,
-// 					moduleSideEffects: true,
-// 				};
-// 			}
-// 			else if(gc_resolve.isEntry) {
-// 				const g_resolution = await this.resolve(si_specifier, si_importer, {
-// 					skipSelf: true,
-// 					...gc_resolve,
-// 				});
-
-// 				if(!g_resolution || g_resolution.external) return g_resolution;
-
-// 				const g_module = await this.load(g_resolution);
-
-// 				g_module.moduleSideEffects = true;
-
-// 				return si_specifier+SI_SUFFIX;
-// 			}
-
-// 			return null;
-// 		},
-
-// 		load(si_module) {
-// 			if(si_module === SI_NFPX_EXPORT) {
-// 				return 'console.log("herex")';
-// 			}
-// 			else if(si_module.endsWith(SI_SUFFIX)) {
-// 				const si_entry = si_module.slice(0, -SI_SUFFIX.length);
-
-// 				const b_default = this.getModuleInfo(si_entry)?.hasDefaultExport;
-
-// 				let sx_out = `
-// 					import ${JSON.stringify(SI_NFPX_EXPORT)};
-// 					export * from ${JSON.stringify(si_entry)}
-// 				`;
-
-// 				if(b_default) {
-// 					sx_out += `export {default} from ${JSON.stringify(si_entry)};`;
-// 				}
-
-// 				return sx_out;
-// 			}
-
-// 			return null;
-
-// 			// if(!f_filter(si_module)) return;
-
-// 			// if(!/\.nfpx(\?)?$/.test(si_module)) return;
-
-// 			// console.log(si_module);
-
-// 			// return [
-// 			// 	`const {
-// 			// 		a: load_script,
-// 			// 	} = window.${'nfpx_'+si_module}`,
-// 			// 	'export default {load_script};',
-// 			// ].join('\n');
-// 		},
-
-// 		// transform(sx_code, si_entry) {
-// 		// 	const y_ast = this.parse(sx_code);
-
-// 		// 	let y_scope = attachScopes(y_ast, 'scope');
-
-// 		// 	const y_magic = new MagicString(sx_code);
-
-// 		// 	const b_sourcemap = !!gc_import.sourceMap;
-
-// 		// 	walk(y_ast, {
-// 		// 		enter(y_node, y_parent, si_prop, i_index) {
-// 		// 			// @ts-expect-error scope
-// 		// 			if(y_node.scope) y_scope = y_node.scope;
-
-// 		// 			if('ImportExpression' === y_node.type) {
-// 		// 				console.log(y_node);
-
-// 		// 				// const y_decl = y_node as ExportNamedDeclaration;
-
-// 		// 				// // only for export specifier group
-// 		// 				// if(!y_decl.declaration) {
-// 		// 				// 	const a_exports: {
-// 		// 				// 		local: string;
-// 		// 				// 		alias: string;
-// 		// 				// 	}[] = [];
-
-// 		// 				// 	// each specifier
-// 		// 				// 	for(const y_spec of y_decl.specifiers) {
-// 		// 				// 		a_exports.push({
-// 		// 				// 			local: y_spec.local.name,
-// 		// 				// 			alias: y_spec.exported.name,
-// 		// 				// 		});
-// 		// 				// 	}
-
-// 		// 				// 	// generate map
-// 		// 				// 	const h_map = a_exports.reduce((h_out, g_export, i_export) => ({
-// 		// 				// 		...h_out,
-// 		// 				// 		[g_export.alias]: encode_symbol(i_export),
-// 		// 				// 	}), {});
-
-// 		// 				// 	// create the encoded symbols object literal map
-// 		// 				// 	const a_encoded = a_exports.map((g_export, i_export) => encode_symbol(i_export)+':'+g_export.local);
-
-// 		// 				// 	// prep the window identifier
-// 		// 				// 	const si_identifier = makeLegalIdentifier('nfpx_'+path.parse(si_entry).name);
-
-// 		// 				// 	// write the export annotation and window assignment expression
-// 		// 				// 	const sx_out = [
-// 		// 				// 		`// @nfp-export-map ${JSON.stringify(h_map)}`,
-// 		// 				// 		`window.${si_identifier} = {${a_encoded.join(', ')}};`,
-// 		// 				// 	].join('\n');
-
-// 		// 				// 	// @ts-expect-error untyped rollup acorn node
-// 		// 				// 	y_magic.overwrite(y_decl.start, y_decl.end, sx_out);  // eslint-disable-line @typescript-eslint/no-unsafe-argument
-// 		// 				// }
-// 		// 			}
-// 		// 		},
-
-// 		// 		// pop scope
-// 		// 		leave(y_node) {
-// 		// 			// @ts-expect-error scope
-// 		// 			if(y_node.scope) y_scope = y_scope.parent;
-// 		// 		},
-// 		// 	});
-
-// 		// 	return {
-// 		// 		code: y_magic.toString(),
-// 		// 		map: b_sourcemap? y_magic.generateMap({
-// 		// 			hires: true,
-// 		// 		}): null,
-// 		// 	};
-// 		// },
-// 	};
-// }
