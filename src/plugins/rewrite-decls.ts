@@ -1,5 +1,5 @@
-import type {NfpModuleConfig} from './_types';
-import type {SyntaxKindLookup} from './syntax-kinds';
+import type {NfpModuleConfig, Plugin} from '../_types';
+import type {SyntaxKindLookup} from '../syntax-kinds';
 import type {OutputAsset, PluginContext} from 'rollup';
 import type {
 	LiteralExpression,
@@ -11,8 +11,6 @@ import type {
 	PropertySignature,
 	TransformationResult,
 	NamedExports,
-	Type,
-	Declaration,
 	TypeAliasDeclaration,
 	Statement,
 } from 'typescript';
@@ -374,3 +372,21 @@ export class DeclRewriter {
 	}
 }
 
+export function rewriteDecls(gc_nfpm: NfpModuleConfig): Plugin {
+	let p_entry = '';
+
+	return {
+		name: 'nfpx-declaration-rewriter',
+
+		buildStart(gc_opt) {
+			p_entry = 'string' === typeof gc_opt.input? gc_opt.input: (gc_opt.input as string[])[0];
+			p_entry = path.resolve(p_entry);
+		},
+
+		generateBundle(gc_out, h_bundle) {
+			new DeclRewriter(p_entry, h_bundle as Record<string, OutputAsset>, gc_nfpm, this);
+		},
+	};
+}
+
+export default rewriteDecls;

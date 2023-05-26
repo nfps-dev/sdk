@@ -8,11 +8,16 @@
 		"declaration": true,
 		"declarationDir": "dist/mjs",
 
-		"sourceMap": false
+		"sourceMap": false,
+
+		"typeRoots": [
+			"./node_modules/@types",
+			"./types"
+		]
 	},
 
 	"include": [
 		"src/**/*.ts",
-		"*.d.ts", "nfpx.ts",
+		"*.d.ts",
 	]
 }

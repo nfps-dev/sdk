@@ -1,6 +1,5 @@
-import type {PluginConfig} from './_types';
+import type {Plugin, PluginConfig} from '../_types';
 import type {Dict} from '@blake.regalia/belt';
-import type {Plugin as RollupPlugin} from 'rollup';
 
 import * as dotenv from 'dotenv';
 import MagicString from 'magic-string';
@@ -14,12 +13,15 @@ type SafeEnv = Dict & {
 
 const R_IMPORT_META_ENV = /\bimport\.meta\.env(?:\.([A-Za-z_$][A-Za-z_$0-9]*))?\b/g;
 
-export function autoboot(gc_export: DevEnvConfig={}): RollupPlugin {
+/**
+ * Replaces `import.meta.env` usage in user-code only with environment variables prefixed with "NFP_"
+ */
+export function envVars(gc_export: DevEnvConfig={}): Plugin {
 	// 
 	let h_env_safe: SafeEnv = {} as SafeEnv;
 
 	return {
-		name: 'nfp-dev-env',
+		name: 'nfp-env-vars',
 
 		buildStart() {
 			// reload env
@@ -33,7 +35,7 @@ export function autoboot(gc_export: DevEnvConfig={}): RollupPlugin {
 			h_env_safe.DEV = 'development' === process.env['NFP_ENV'];
 			h_env_safe.PROD = !h_env_safe.DEV;
 
-			console.log(h_env_safe);
+			console.log(`Environment variables available for substitution during build:`, h_env_safe);
 		},
 
 		transform(sx_code, si_module) {
@@ -63,3 +65,5 @@ export function autoboot(gc_export: DevEnvConfig={}): RollupPlugin {
 		},
 	};
 }
+
+export default envVars;

@@ -1,9 +1,4 @@
-import type {NfpModuleConfig} from './_types.js';
-import type {
-	OutputAsset,
-	OutputPlugin,
-	Plugin,
-} from 'rollup';
+import type {NfpModuleConfig, Plugin} from './_types.js';
 
 import path from 'node:path';
 
@@ -15,21 +10,23 @@ import typescript from '@rollup/plugin-typescript';
 import filesize from 'rollup-plugin-filesize';
 import uglify from 'uglify-js';
 
-import {autoboot} from './dev-env.js';
-import {nfpxWindow} from './nfpx.js';
-import {DeclRewriter} from './rewrite-decls.js';
+import envVars from './plugins/env-vars.js';
+import nfpxWindow from './plugins/nfpx.js';
+import rewriteDecls from './plugins/rewrite-decls.js';
 
 
-export function nfpModule(gc_nfpm: NfpModuleConfig): Plugin[] {
+export function nfpModule<
+	w_plugin=Plugin,
+>(gc_nfpm: NfpModuleConfig): w_plugin[] {
 	let p_entry = '';
 
 	return [
 		// node-style resolution
 		resolve({
 			browser: true,
-		}),
+		}) as w_plugin,
 
-		{
+		({
 			name: 'nfpx-primer',
 
 			buildStart(gc_opt) {
@@ -43,13 +40,13 @@ export function nfpModule(gc_nfpm: NfpModuleConfig): Plugin[] {
 			// 	}
 			// },
 
-		},
+		} as Plugin) as w_plugin,
 
-		// optoinal autoboot
-		autoboot(gc_nfpm),
+		// env var substitution
+		envVars(gc_nfpm) as w_plugin,
 
-		// window exports
-		nfpxWindow(gc_nfpm),
+		// nfp module system
+		nfpxWindow(gc_nfpm) as w_plugin,
 
 		// enable typescript
 		typescript({
@@ -62,15 +59,10 @@ export function nfpModule(gc_nfpm: NfpModuleConfig): Plugin[] {
 			transformers: {
 				...gc_nfpm.transformers,
 			},
-		}),
+		}) as w_plugin,
 
-		{
-			name: 'nfpx-declaration-rewriter',
-
-			generateBundle(gc_out, h_bundle) {
-				new DeclRewriter(p_entry, h_bundle as Record<string, OutputAsset>, gc_nfpm, this);
-			},
-		},
+		// rewrite typescript declaration outputs
+		rewriteDecls(gc_nfpm) as w_plugin,
 
 		// minify using terser
 		...'development' !== process.env['NFP_ENV']? [
@@ -122,24 +114,22 @@ export function nfpModule(gc_nfpm: NfpModuleConfig): Plugin[] {
 				format: {
 					wrap_func_args: false,
 				},
-			}),
+			}) as w_plugin,
 
 			// terser is not perfect on its own, use uglify to clean up remainder
-			{
+			({
 				name: 'uglify',
-				generateBundle: {
-					handler(gc_bundle, h_bundle, b_write) {
-						for(const [, g_bundle] of Object.entries(h_bundle)) {
-							if('chunk' === g_bundle.type) {
-								g_bundle.code = uglify.minify(g_bundle.code).code;
-							}
+				generateBundle(gc_bundle, h_bundle, b_write) {
+					for(const [, g_bundle] of Object.entries(h_bundle)) {
+						if('chunk' === g_bundle.type) {
+							g_bundle.code = uglify.minify(g_bundle.code).code;
 						}
-					},
+					}
 				},
-			} as OutputPlugin,
+			} as Plugin) as w_plugin,
 
 			// display the bundled sizes
-			filesize(),
+			filesize() as w_plugin,
 		]: [],
 	];
 }

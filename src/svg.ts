@@ -6,7 +6,7 @@ import {JSDOM} from 'jsdom';
 import {optimize} from 'svgo';
 import xmlFormat from 'xml-formatter';
 
-import {minify_styles} from './minify-styles.js';
+import {minify_styles} from './plugins/minify-styles.js';
 
 
 interface NfpNodes {
