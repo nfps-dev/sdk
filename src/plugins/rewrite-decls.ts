@@ -13,6 +13,7 @@ import type {
 	NamedExports,
 	TypeAliasDeclaration,
 	Statement,
+	Identifier,
 } from 'typescript';
 
 import path from 'node:path';
@@ -93,11 +94,15 @@ function transform_asset(
 	return y_transformed;
 }
 
-function neuter_exports(g_subject: OutputAsset): SourceFile {
+function neuter_exports(g_subject: OutputAsset, b_keep_locals=false): SourceFile {
 	return transform_asset(g_subject, (y_node) => {
 		// keep all imports
 		if(kind.ImportDeclaration === y_node.kind) {
 			return y_node;
+		}
+		// keep local types
+		else if(b_keep_locals && kind.InterfaceDeclaration === y_node.kind) {
+			return create(y_node.getFullText().replace(/^(\s*)export\s+/, '$1'), g_subject.fileName);
 		}
 		// remove anything else
 		else if(kind.SourceFile !== y_node.kind) {
@@ -107,6 +112,17 @@ function neuter_exports(g_subject: OutputAsset): SourceFile {
 		// recurse
 		return;
 	});
+}
+
+function nuetered(g_subject: OutputAsset, b_keep_locals=false) {
+	// neuter all of the asset's own exports
+	const y_neutered = neuter_exports(g_subject, b_keep_locals);
+	const sx_neutered = ts.createPrinter().printFile(y_neutered);
+
+	// replace the statement that imports the asset
+	const y_recreated = ts.createSourceFile('virtual', sx_neutered, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+
+	return y_recreated;
 }
 
 
@@ -124,6 +140,8 @@ export class DeclRewriter {
 
 	protected _h_fields: Record<string, string> = {};
 	protected _as_exclude = new Set<string>();
+
+	protected _a_defaults: string[] = [];
 
 	constructor(
 		protected _si_entry: string,
@@ -143,6 +161,9 @@ export class DeclRewriter {
 
 			// append the nfpx exports
 			this._append_nfpx_exports(g_entry_decl);
+
+			// automatically add a default export
+			this._append_default_export(g_entry_decl);
 
 			// do not emit any other .d.ts files
 			for(const [si_file] of Object.entries(_h_bundle)) {
@@ -212,11 +233,39 @@ export class DeclRewriter {
 				if(g_asset) {
 					// inline the asset
 					k_self._inline_imports(g_asset, [...a_blocking, g_entry]);
+
+					// neuter the assets own exports (but keep local interfaces)
+					return nuetered(g_asset, true);
 				}
 
 				// stop recursing
 				return null;
 			},
+
+			// [kind.InterfaceDeclaration](y_iface) {
+			// 	debugger;
+			// 	const as_modifiers = new Set(y_iface.modifiers || []);
+
+			// 	// remove exports
+			// 	for(const y_modifier of as_modifiers) {
+			// 		// remove export
+			// 		if(kind.ExportKeyword === y_modifier.kind) {
+			// 			as_modifiers.delete(y_modifier);
+			// 		}
+			// 	}
+
+			// 	const y_recreated = create(y_iface.getText().replace(/^export /, ''), g_entry.fileName);
+			// 	debugger;
+			// 	return y_recreated;
+
+			// 	// // rebuild node
+			// 	// return {
+			// 	// 	...y_iface,
+			// 	// 	modifiers: [
+			// 	// 		...as_modifiers,
+			// 	// 	],
+			// 	// };
+			// },
 
 			// export [type] ...
 			[kind.ExportDeclaration](y_export) {
@@ -228,14 +277,8 @@ export class DeclRewriter {
 						// rewrite the asset to inline all of its imports
 						k_self._inline_imports(g_asset, [...a_blocking, g_entry]);
 
-						// neuter all of the asset's own exports
-						const y_neutered = neuter_exports(g_asset);
-						const sx_neutered = ts.createPrinter().printFile(y_neutered);
-
-						// replace the statement that imports the asset
-						const y_recreated = ts.createSourceFile('virtual', sx_neutered, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
-
-						return y_recreated;
+						// neuter the assets own exports
+						return nuetered(g_asset);
 					}
 				}
 
@@ -265,7 +308,85 @@ export class DeclRewriter {
 		}));
 	}
 
-	_capture_nfpx_exports(g_subject: OutputAsset, si_interface='NfpxExports'): void {
+	_append_default_export(g_subject: OutputAsset): void {
+		const {_h_fields, _as_exclude, _a_defaults} = this;
+
+		let sx_default = `export default interface Default`;
+
+		transform_asset(g_subject, y_node => map_node(y_node, {
+			[kind.ExportDeclaration](y_export) {
+				if(kind.NamedExports === y_export.exportClause?.kind) {
+					for(const g_element of y_export.exportClause.elements) {
+						const si_ident = g_element.name.text;
+						_a_defaults.push(`${si_ident}: typeof ${si_ident};`);
+					}
+				}
+
+				// stop recursing
+				return null;
+			},
+
+			[kind.FunctionDeclaration](y_func) {
+				for(const y_modifier of Array.from(y_func.modifiers || [])) {
+					if(kind.ExportKeyword === y_modifier.kind) {
+						const si_ident = y_func.name?.text;
+						if(si_ident) {
+							_a_defaults.push(`${si_ident}: typeof ${si_ident};`);
+						}
+					}
+				}
+
+				// stop recursing
+				return null;
+			},
+
+			// absorb existing default
+			[kind.InterfaceDeclaration](y_iface) {
+				if('Default' === y_iface.name.text) {
+					let b_export = false;
+					let b_default = false;
+					for(const y_modifier of Array.from(y_iface.modifiers || [])) {
+						if(kind.ExportKeyword === y_modifier.kind) {
+							b_export = true;
+						}
+						else if(kind.DefaultKeyword === y_modifier.kind) {
+							b_default = true;
+						}
+					}
+
+					if(!b_export || !b_default) {
+						throw new Error(`Exporting to the interface named "Default" must be of the form 'export default interface Default ...'`);
+					}
+
+					sx_default = y_iface.getFullText().replace(/\{[^]*$/, '');
+
+					for(const y_member of y_iface.members) {
+						_a_defaults.push(y_member.getFullText());
+					}
+
+					// remove it and replace it in the next transform
+					return [];
+				}
+
+				// stop recursing
+				return null;
+			},
+		}));
+
+		// write the default export
+		transform_asset(g_subject, y_node => map_node(y_node, {
+			[kind.SourceFile](y_source) {
+				return create([
+					serialize(y_source),
+					serialize(create(`${sx_default} {
+						${_a_defaults.join('\n')}
+					`)),
+				].join('\n'), g_subject.fileName);
+			},
+		}));
+	}
+
+	_capture_nfpx_exports(g_subject: OutputAsset, si_interface='Default'): void {
 		const {
 			_h_fields,
 			_as_exclude,
@@ -297,6 +418,18 @@ export class DeclRewriter {
 				[kind.InterfaceDeclaration](y_decl) {
 					// found it
 					if(si_interface === y_decl.name.text) {
+						// // if it extends an imported interface
+						// for(const y_clause of Array.from(y_decl.heritageClauses || [])) {
+						// 	for(const y_type of Array.from(y_clause.types || [])) {
+						// 		if(kind.Identifier === y_type.expression.kind) {
+						// 			const si_type = (y_type.expression as Identifier).text;
+						// 			if(_h_imports[si_type]) {
+						// 				this._capture_nfpx
+						// 			}
+						// 		}
+						// 	}
+						// }
+
 						// each member of the interface
 						for(const y_mem of y_decl.members) {
 							// property signature in interface

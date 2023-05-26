@@ -140,7 +140,7 @@ export async function loadNfpModulesJson({
 	// parse file contents
 	if(sx_json.trim()) {
 		try {
-			g_json = JSON.parse(sx_json);
+			g_json = JSON.parse(sx_json) as unknown as NfpModulesJson;
 
 			if(!g_json.modules) {
 				throw new Error('Missing modules key');
