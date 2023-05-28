@@ -19,12 +19,10 @@ import type {
 
 import path from 'node:path';
 
-import {ode, type Dict} from '@blake.regalia/belt';
+import {ode, type Dict, uuid_v4} from '@blake.regalia/belt';
 
 import {default as ts} from 'typescript';
 
-// polyfill crypto
-if(!globalThis.crypto) globalThis.crypto = (await import('node:crypto')).webcrypto;
 
 const {
 	factory,
@@ -33,7 +31,7 @@ const {
 
 type ModuleSpecifying = Node & {moduleSpecifier: Node};
 
-const create = (sx_code: string, si_file?: string, b_parents=true): SourceFile => ts.createSourceFile(si_file || crypto.randomUUID(), sx_code, ts.ScriptTarget.Latest, b_parents, ts.ScriptKind.TS);
+const create = (sx_code: string, si_file?: string, b_parents=true): SourceFile => ts.createSourceFile(si_file || uuid_v4(), sx_code, ts.ScriptTarget.Latest, b_parents, ts.ScriptKind.TS);
 
 const load = (g_entry: OutputAsset): SourceFile => create(g_entry.source as string, g_entry.fileName);
 
