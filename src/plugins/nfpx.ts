@@ -20,7 +20,7 @@ import * as astring from 'astring';
 import {walk} from 'estree-walker';
 import MagicString from 'magic-string';
 
-import {checkNodeForDynamicImport} from './dynamic-imports.js';
+import {SI_DESTRUCTURE_CALL, checkNodeForDynamicImport} from './dynamic-imports.js';
 
 const S_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -42,6 +42,7 @@ const SI_NFPX_IMPORT = '\0nfpx-import?';
 const SI_NFPX_IMPORT_DYNAMIC = '\0nfpx-import-dynamic?';
 const SI_NFPX_SPECIFIER_PREFIX = 'nfpx:';
 const SI_GLOBAL_RUNTIME_PREFIX = 'nfpx_';
+const SI_DYNAMIC_EXPORT_CALL = 'exportNfpx';
 
 const SR_NFP_MODULES_JSON = '.nfp-modules.json';
 
@@ -476,13 +477,13 @@ export function nfpxWindow(gc_nfpm: NfpxWindowConfig): Plugin {
 					if(yn_self.scope) y_scope = yn_self.scope;
 
 					// find all dynamic exports `exportNfpx(...)`
-					if('CallExpression' === yn_self.type) {
-						// type-cast call node
+					if('CallExpression' === yn_self.type && 'Identifier' === yn_self.callee.type) {
+						// type-cast nodes
 						const yn_call = yn_self as CallExpression;
+						const y_callee = yn_call.callee as Identifier;
 
-						// exportNfpx callee
-						const y_callee = yn_call.callee;
-						if('Identifier' === y_callee.type && 'exportNfpx' === y_callee.name) {
+						// `exportNfpx()`
+						if(SI_DYNAMIC_EXPORT_CALL === y_callee.name) {
 							const nl_args = yn_call.arguments.length;
 
 							// no-args is a no-op
@@ -537,6 +538,10 @@ export function nfpxWindow(gc_nfpm: NfpxWindowConfig): Plugin {
 							else {
 								return f_error('Call to `exportNfpx()` passed too many arguments', yn_call);
 							}
+						}
+						// destructure call; forward to handler
+						else if(SI_DESTRUCTURE_CALL === y_callee.name) {
+							checkNodeForDynamicImport(yn_self, yn_parent, {f_error, f_replace}, g_nfp_modules_json, h_dependencies);
 						}
 					}
 					// export expression

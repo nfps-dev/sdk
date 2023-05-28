@@ -16,7 +16,7 @@ function default_error(s_err: string, yn?: Node): never {
 	throw new Error(s_err);
 }
 
-const SI_DESTRUCTURE_CALL = 'destructureImportedNfpModule';
+export const SI_DESTRUCTURE_CALL = 'destructureImportedNfpModule';
 
 function uncle_declarator(yn_parent: Node | null, f_error: typeof default_error): ObjectPattern | null {
 	let yn_pattern: Node;
@@ -55,7 +55,7 @@ export function checkNodeForDynamicImport(yn_self: Node, yn_parent: Node | null,
 		const a_args = yn_self.arguments;
 
 		if(1 !== a_args.length || 'Literal' !== a_args[0].type || 'string' !== typeof a_args[0].value) {
-			f_error(`${SI_DESTRUCTURE_CALL} call requires exactly 1 argument; that argument must be a string literal`);
+			return f_error(`${SI_DESTRUCTURE_CALL} call requires exactly 1 argument; that argument must be a string literal`);
 		}
 
 		const si_module = (a_args[0] as Literal).value as string;

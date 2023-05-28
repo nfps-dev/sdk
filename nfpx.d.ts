@@ -54,11 +54,13 @@ declare global {
 
 	const nfpx: NfpxGlobal;
 
+	interface NfpModulesMap {}
+
 	/**
 	 * Must be used with a destructuring assignment. Replaced at compile-time with aliases resolved to symbols
 	 * @param si_module 
 	 */
 	function destructureImportedNfpModule<
-		w_out extends Dict<any>,
-	>(si_module: string): w_out;
+		si_module extends keyof NfpModulesMap,
+	>(si_module: si_module): NfpModulesMap[si_module];
 }

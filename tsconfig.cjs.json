@@ -4,5 +4,6 @@
 	"compilerOptions": {
 		"outDir": "dist/cjs",
 		"declarationDir": "dist/cjs",
+		"module": "ES2022"
 	}
 }

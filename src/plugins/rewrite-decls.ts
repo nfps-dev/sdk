@@ -1,5 +1,6 @@
 import type {NfpModuleConfig, Plugin} from '../_types';
 import type {SyntaxKindLookup} from '../syntax-kinds';
+
 import type {OutputAsset, PluginContext} from 'rollup';
 import type {
 	LiteralExpression,
@@ -18,10 +19,11 @@ import type {
 
 import path from 'node:path';
 
+import {ode, type Dict} from '@blake.regalia/belt';
+
 import {default as ts} from 'typescript';
 
 // polyfill crypto
-// @ts-expect-error node types
 if(!globalThis.crypto) globalThis.crypto = (await import('node:crypto')).webcrypto;
 
 const {
@@ -235,12 +237,15 @@ export class DeclRewriter {
 					k_self._inline_imports(g_asset, [...a_blocking, g_entry]);
 
 					// neuter the assets own exports (but keep local interfaces)
-					return nuetered(g_asset, true);
+					const y_neutered = nuetered(g_asset, true);
+
+					return y_neutered;
 				}
 
 				// stop recursing
 				return null;
 			},
+
 
 			// [kind.InterfaceDeclaration](y_iface) {
 			// 	debugger;
@@ -309,7 +314,7 @@ export class DeclRewriter {
 	}
 
 	_append_default_export(g_subject: OutputAsset): void {
-		const {_h_fields, _as_exclude, _a_defaults} = this;
+		const {_h_fields, _as_exclude, _a_defaults, _gc_nfpm} = this;
 
 		let sx_default = `export default interface Default`;
 
@@ -384,6 +389,118 @@ export class DeclRewriter {
 				].join('\n'), g_subject.fileName);
 			},
 		}));
+
+		// make sure all referenced members are exported
+		{
+			const h_exported: Dict = {};
+
+			const h_interfaces: Dict<{
+				inherits: string[];
+				pairs: Dict;
+			}> = {};
+
+			traverse_asset(g_subject, y_sub => map_node(y_sub, {
+				[kind.InterfaceDeclaration](y_iface) {
+					const a_inherits: string[] = [];
+					for(const y_inherit of Array.from(y_iface.heritageClauses || [])) {
+						for(const y_type of y_inherit.types) {
+							a_inherits.push(y_type.getText());
+						}
+					}
+
+					h_interfaces[y_iface.name.text] = {
+						inherits: a_inherits,
+						pairs: Array.from(y_iface.members || []).reduce((h_out, y_member) => {
+							if(kind.PropertySignature === y_member.kind) {
+								const y_ident = y_member.name;
+								if(kind.Identifier === y_ident?.kind) {
+									return {
+										...h_out,
+										[y_ident.text]: (y_member as PropertySignature).type?.getText() || 'any',
+									};
+								}
+							}
+
+							return h_out;
+						}, {}),
+					};
+				},
+
+				[kind.ExportDeclaration](y_export) {
+					const y_clause = y_export.exportClause;
+					if(kind.NamedExports === y_clause?.kind) {
+						for(const y_elmt of Array.from(y_clause.elements || [])) {
+							h_exported[y_elmt.name.text] = y_elmt.getText();
+						}
+					}
+				},
+
+				[kind.FunctionDeclaration](y_func) {
+					const si_func = y_func.name?.text;
+					if(si_func) {
+						for(const y_modifier of Array.from(y_func.modifiers || [])) {
+							if(kind.ExportKeyword === y_modifier.kind) {
+								h_exported[si_func] = y_func.getText();
+							}
+						}
+					}
+				},
+
+				[kind.VariableStatement](y_var) {
+					for(const y_modifier of Array.from(y_var.modifiers || [])) {
+						if(kind.ExportKeyword === y_modifier.kind) {
+							for(const y_decl of Array.from(y_var.declarationList.declarations || [])) {
+								const y_name = y_decl.name;
+								if(kind.Identifier === y_name.kind) {
+									h_exported[y_name.text] = y_decl.getText();
+								}
+							}
+						}
+					}
+				},
+			}));
+
+			const a_ammends: string[] = [];
+
+			function needing_export(si_interface: string) {
+				const {
+					inherits: a_inherits,
+					pairs: h_pairs,
+				} = h_interfaces[si_interface];
+
+				for(const [si_export] of ode(h_pairs)) {
+					// member is not exported; add an export
+					if(!h_exported[si_export]) {
+						a_ammends.push(`export const ${si_export}: ${h_pairs[si_export]};`);
+					}
+				}
+
+				// recurse on heritage
+				for(const si_inherit of a_inherits) {
+					if(h_interfaces[si_inherit]) {
+						needing_export(si_inherit);
+					}
+					else {
+						console.warn(`exported Default interface extends an interface imported from a third party "${si_inherit}"; however its members will not be typed in the default export`);
+					}
+				}
+			}
+
+			needing_export('Default');
+
+			// augment the modules map for destruturing call
+			a_ammends.push(`declare global { interface NfpModulesMap { ${_gc_nfpm.id}: Default; } }`);
+
+			// append top-level properties
+			transform_asset(g_subject, y_node => map_node(y_node, {
+				[kind.SourceFile](y_source) {
+					return create([
+						serialize(y_source),
+						serialize(create('\n'+a_ammends.join('\n'))),
+					].join('\n'), g_subject.fileName);
+				},
+			}));
+		}
 	}
 
 	_capture_nfpx_exports(g_subject: OutputAsset, si_interface='Default'): void {
