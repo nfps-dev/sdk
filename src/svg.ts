@@ -12,6 +12,7 @@ import {minify_styles} from './plugins/minify-styles.js';
 interface NfpNodes {
 	web: {
 		lcds?: string;
+		rpcs?: string;
 		comcs?: string;
 	};
 	self: {
@@ -71,6 +72,7 @@ export interface BuildConfig {
 	metadata?: {
 		web?: {
 			lcds?: UrlString[];
+			rpcs?: UrlString[];
 			comcs?: UrlString[];
 		};
 
@@ -167,6 +169,9 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 				// lcds
 				if(gc_web.lcds?.length) dm_web.setAttributeNS(P_NS_NFP, 'lcds', gc_web.lcds.join(','));
 
+				// rpcs
+				if(gc_web.rpcs?.length) dm_web.setAttributeNS(P_NS_NFP, 'rpcs', gc_web.rpcs.join(','));
+
 				// comcs
 				if(gc_web.comcs?.length) dm_web.setAttributeNS(P_NS_NFP, 'comcs', gc_web.comcs.join(','));
 			}
@@ -204,6 +209,10 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 		{
 			if(!dm_web.getAttributeNS(P_NS_NFP, 'lcds')) {
 				console.warn(`<nfp:web> missing 'nfp:lcds' attribute`);
+			}
+
+			if(!dm_web.getAttributeNS(P_NS_NFP, 'rpcs')) {
+				console.warn(`<nfp:web> missing 'nfp:rpcs' attribute`);
 			}
 
 			if(!dm_web.getAttributeNS(P_NS_NFP, 'comcs')) {

@@ -4,6 +4,7 @@ interface ImportMetaEnv {
 	PROD: boolean;
 
 	WEB_LCDS?: string;
+	WEB_RPCS?: string;
 	WEB_COMCS?: string;
 	SELF_CHAIN?: string;
 	SELF_CONTRACT?: string;
