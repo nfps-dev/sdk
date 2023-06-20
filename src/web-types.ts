@@ -49,8 +49,115 @@ type SelectLowerStringKeys<h_object extends object> = Extract<keyof h_object, st
 		: string
 	: string;
 
+type SelectStrings<
+	h_object extends object,
+	as_keys extends string,
+> = O.SelectKeys<{
+	[si_key in Extract<keyof h_object, as_keys>]: h_object[si_key] extends string
+		? 1
+		: 0
+}, 1>;
+
+type StandardHtmlAttributes =
+	| 'accept'
+	| 'accesskey'
+	| 'action'
+	| 'align'
+	| 'alt'
+	| 'async'
+	| 'autocomplete'
+	| 'autofocus'
+	| 'autoplay'
+	| 'bgcolor'
+	| 'border'
+	| 'charset'
+	| 'checked'
+	| 'cite'
+	| 'class'
+	| 'color'
+	| 'cols'
+	| 'colspan'
+	| 'content'
+	| 'contenteditable'
+	| 'controls'
+	| 'coords'
+	| 'data'
+	| 'datetime'
+	| 'default'
+	| 'defer'
+	| 'dir'
+	| 'disabled'
+	| 'download'
+	| 'draggable'
+	| 'dropzone'
+	| 'enctype'
+	| 'for'
+	| 'form'
+	| 'headers'
+	| 'height'
+	| 'hidden'
+	| 'high'
+	| 'href'
+	| 'hreflang'
+	| 'http-equiv'
+	| 'id'
+	| 'ismap'
+	| 'kind'
+	| 'label'
+	| 'lang'
+	| 'list'
+	| 'loop'
+	| 'low'
+	| 'max'
+	| 'maxlength'
+	| 'media'
+	| 'method'
+	| 'min'
+	| 'multiple'
+	| 'muted'
+	| 'name'
+	| 'novalidate'
+	| 'open'
+	| 'optimum'
+	| 'pattern'
+	| 'placeholder'
+	| 'poster'
+	| 'preload'
+	| 'readonly'
+	| 'rel'
+	| 'required'
+	| 'reversed'
+	| 'rows'
+	| 'rowspan'
+	| 'sandbox'
+	| 'scope'
+	| 'selected'
+	| 'shape'
+	| 'size'
+	| 'sizes'
+	| 'span'
+	| 'spellcheck'
+	| 'src'
+	| 'srcdoc'
+	| 'srclang'
+	| 'srcset'
+	| 'start'
+	| 'step'
+	| 'style'
+	| 'tabindex'
+	| 'target'
+	| 'title'
+	| 'type'
+	| 'usemap'
+	| 'value'
+	| 'width'
+	| 'wrap'
+	| `aria-${string}`
+	| `data-${string}`
+	| `on${string}`;
+
 type HtmlElementProperties<d_element extends Element, w_extra=never> = {
-	[si_key in SelectLowerStringKeys<d_element>]?: string;
+	[si_key in StandardHtmlAttributes | SelectStrings<d_element, SelectLowerStringKeys<d_element>>]?: string;
 };
 
 export type HtmlNodeCreator = <
@@ -63,6 +170,15 @@ export type HtmlNodeCreator = <
 	a_children?: (Node | string)[]
 ) => si_tag extends keyof HTMLElementTagNameMap? HTMLElementTagNameMap[si_tag]: HTMLElement;
 
+// type wtf = HTMLElementTagNameMap['a'];
+// type sho = wtf['toString']
+// type expo = HtmlElementProperties<wtf>;
+// type ss = expo['toString']
+// let test!: HtmlNodeCreator;
+// test('a', {
+// 	href: 'yes',
+// 	class: 'hi',
+// });
 
 // type test<
 // 	si_tag extends keyof SVGElementTagNameMap,
