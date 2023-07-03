@@ -35,11 +35,11 @@ export type SvgNodeCreator = <
 	dm_element extends SVGElementTagNameMap[si_tag],
 >(
 	si_tag: si_tag,
-	h_attrs?: O.MergeAll<{}, [
+	h_attrs?: O.Optional<O.MergeAll<{}, [
 		si_tag extends keyof AugmentationMap? U.Merge<AugmentationMap[si_tag]>: {},
 		AllSvgElements,
 		SvgElementProperties<dm_element>,
-	]>,
+	]>>,
 	a_children?: (Node | string)[]
 ) => dm_element;
 
@@ -169,24 +169,3 @@ export type HtmlNodeCreator = <
 		: HtmlElementProperties<HTMLElement>,
 	a_children?: (Node | string)[]
 ) => si_tag extends keyof HTMLElementTagNameMap? HTMLElementTagNameMap[si_tag]: HTMLElement;
-
-// type wtf = HTMLElementTagNameMap['a'];
-// type sho = wtf['toString']
-// type expo = HtmlElementProperties<wtf>;
-// type ss = expo['toString']
-// let test!: HtmlNodeCreator;
-// test('a', {
-// 	href: 'yes',
-// 	class: 'hi',
-// });
-
-// type test<
-// 	si_tag extends keyof SVGElementTagNameMap,
-// 	dm_element extends SVGElementTagNameMap[si_tag]=SVGElementTagNameMap[si_tag],
-// >= O.MergeAll<{}, [
-// 	si_tag extends keyof AugmentationMap? U.Merge<AugmentationMap[si_tag]>: {},
-// 	AllSvgElements,
-// 	SvgElementProperties<dm_element>,
-// ]>;
-
-// type show = test<'path'>['d'];
