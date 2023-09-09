@@ -178,9 +178,11 @@ export function nfpxWindow(gc_nfpm: NfpxWindowConfig): Plugin {
 		f_replace: (y_node: BaseNode, sx_write: string) => y_magic?.overwrite((y_node as any).start, (y_node as any).end, sx_write),
 
 		// typed warn
+		// @ts-expect-error mistyped logging function
 		f_warn: (s_msg: string, y_node?: BaseNode) => y_hook.warn(s_msg, (y_node as any)?.start),
 
 		// typed error
+		// @ts-expect-error mistyped logging function
 		f_error: (s_msg: string, y_node?: BaseNode) => y_hook.error(s_msg, (y_node as any)?.start),
 		/* eslint-enable */
 	});
