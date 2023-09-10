@@ -321,7 +321,7 @@ export class DeclRewriter {
 				if(kind.NamedExports === y_export.exportClause?.kind) {
 					for(const g_element of y_export.exportClause.elements) {
 						const si_ident = g_element.name.text;
-						_a_defaults.push(`${si_ident}: typeof ${si_ident};`);
+						_a_defaults.push(`${si_ident.replace(/\?$/, '')}: typeof ${si_ident};`);
 					}
 				}
 
@@ -334,7 +334,7 @@ export class DeclRewriter {
 					if(kind.ExportKeyword === y_modifier.kind) {
 						const si_ident = y_func.name?.text;
 						if(si_ident) {
-							_a_defaults.push(`${si_ident}: typeof ${si_ident};`);
+							_a_defaults.push(`${si_ident.replace(/\?$/, '')}: typeof ${si_ident};`);
 						}
 					}
 				}
