@@ -152,7 +152,7 @@ export class DeclRewriter {
 		const si_entry_decl = this._si_entry_decl = path.basename(_si_entry, '.ts')+'.d.ts';
 
 		const g_entry_decl = _h_bundle[si_entry_decl];
-		if('asset' === g_entry_decl.type) {
+		if('asset' === g_entry_decl?.type) {
 			// first, capture the NfpxExports interface
 			this._capture_nfpx_exports(g_entry_decl);
 
