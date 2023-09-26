@@ -23,8 +23,16 @@
 	"module": "dist/mjs/main.js",
 	"types": "dist/mjs/main.d.ts",
 	"exports": {
-		"require": "./dist/cjs/main.js",
-		"import": "./dist/mjs/main.js"
+		".": {
+			"require": "./dist/cjs/main.js",
+			"import": "./dist/mjs/main.js"
+		},
+		"./env-vars": {
+			"types": "./env-vars.d.ts"
+		},
+		"./nfpx": {
+			"types": "./nfpx.d.ts"
+		}
 	},
 	"files": [
 		"dist",
