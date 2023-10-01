@@ -49,11 +49,22 @@ export function envVars(gc_export: DevEnvConfig={}): Plugin {
 			while(m_env=R_IMPORT_META_ENV.exec(sx_code)) {
 				const si_property = m_env[1];
 
-				const w_replacement = si_property? h_env_safe[si_property]: h_env_safe;
+				let sx_replacement = '';
+				if(si_property) {
+					if(si_property in h_env_safe) {
+						sx_replacement = JSON.stringify(h_env_safe[si_property]);
+					}
+					else {
+						this.error(`Script attempts to use import.meta.env.${si_property} but no such NFP_${si_property} environment variable was defined`);
+					}
+				}
+				else {
+					sx_replacement = JSON.stringify(h_env_safe);
+				}
 
 				const i_start = m_env.index!;
 
-				y_magic.overwrite(i_start, i_start+m_env[0].length, JSON.stringify(w_replacement));
+				y_magic.overwrite(i_start, i_start+m_env[0].length, sx_replacement);
 
 				b_replaced = true;
 			}

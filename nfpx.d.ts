@@ -1,4 +1,5 @@
 import type {
+	Dict,
 	JsonValue,
 } from '@blake.regalia/belt';
 
@@ -16,13 +17,16 @@ export type {};
 interface NfpxGlobal {
 	l: typeof load_script;
 	a(si_prop: string, h_data: Dict<any>): Dict<any>;
-	i(...a_args: Arguments<typeof load_script>): Dict<any>;
+	i(...a_args: Parameters<typeof load_script>): Dict<any>;
 }
 
 declare global {
 	function exportNfpx(): void;
 
-	interface ImportCallOptions {
+	interface ImportCallOptions<
+		// ts-bug 37888 workaround
+		w_defer=never,
+	> {
 		/**
 		 * A {@link SlimTokenLocation} tuple, identifying the location of the NFT
 		 */
@@ -37,7 +41,7 @@ declare global {
 		 * How to authenticate with the contract (query permit object, viewing key string, or `null`).
 		 * Provide `null` if the package is public and authentication is not needed
 		 */
-		auth: AuthSecret | null;
+		auth: AuthSecret | null | w_defer;
 
 		/**
 		 * Optional arbitrary key/value args to submit with the query; primarily used for selecting a tag

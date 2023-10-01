@@ -152,7 +152,11 @@ export class DeclRewriter {
 		const si_entry_decl = this._si_entry_decl = path.basename(_si_entry, '.ts')+'.d.ts';
 
 		const g_entry_decl = _h_bundle[si_entry_decl];
-		if('asset' === g_entry_decl?.type) {
+		if(!g_entry_decl) {
+			throw new Error(`Build process failed to generate a root-level .d.ts file for entry asset ${_si_entry}; are you importing files from adjacent directories?\nBundle keys: ${Object.keys(_h_bundle)}`);
+		}
+
+		if('asset' === g_entry_decl.type) {
 			// first, capture the NfpxExports interface
 			this._capture_nfpx_exports(g_entry_decl);
 
