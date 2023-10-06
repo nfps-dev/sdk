@@ -11,6 +11,7 @@ interface ImportMetaEnv {
 	SELF_TOKEN?: string;
 	WALLET_PRIVATE_KEY?: string;
 	VIEWING_KEY?: string;
+	OWNER?: string;
 }
 
 interface ImportMeta {
