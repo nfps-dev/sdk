@@ -1,5 +1,6 @@
 import type {NfpModuleConfig, Plugin} from '../_types';
 
+import type {Dict} from '@blake.regalia/belt';
 import type {
 	BaseNode,
 	CallExpression,
@@ -13,7 +14,7 @@ import type {PluginContext} from 'rollup';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import {sha256, type Dict, text_to_buffer, buffer_to_base93, ode, odv, buffer_to_hex, oderom, fodemtv, fold, ofe} from '@blake.regalia/belt';
+import {sha256, text_to_buffer, buffer_to_base93, ode, odv, buffer_to_hex, oderom, fodemtv, fold, ofe} from '@blake.regalia/belt';
 
 import {attachScopes, createFilter, makeLegalIdentifier} from '@rollup/pluginutils';
 import * as astring from 'astring';
@@ -386,9 +387,11 @@ export function nfpxWindow(gc_nfpm: NfpxWindowConfig): Plugin {
 					// load exports from module via its reserved property id on window
 					const h_exports = window.${identifier_for_module(si_nfpx)};
 
-					// destructure exports
-					const {${a_destructures.join(',')}
-					} = h_exports;
+					${a_destructures.length? `
+						// destructure exports
+						const {${a_destructures.join(',')}
+						} = h_exports;
+					`: ''}
 
 					// default export
 					export default h_exports;
