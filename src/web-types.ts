@@ -35,15 +35,15 @@ export type SvgNodeCreator = <
 	dm_element extends SVGElementTagNameMap[si_tag],
 >(
 	si_tag: si_tag,
-	h_attrs?: O.Optional<O.MergeAll<{
+	h_attrs?: O.Optional<{
 		[si_event in keyof SVGElementEventMap as `_${si_event}`]:
-		| Parameters<SVGElementTagNameMap[si_tag]['addEventListener']>[1]
-		| L.Tail<Parameters<SVGElementTagNameMap[si_tag]['addEventListener']>>;
-	}, [
-		si_tag extends keyof AugmentationMap? U.Merge<AugmentationMap[si_tag]>: {},
-		AllSvgElements,
-		SvgElementProperties<dm_element>,
-	]>>,
+		| ((this: SVGElementTagNameMap[si_tag], d_event: SVGElementEventMap[si_event]) => any)
+		| [((this: SVGElementTagNameMap[si_tag], d_event: SVGElementEventMap[si_event]) => any), options?: boolean | AddEventListenerOptions]
+	}
+	& (si_tag extends keyof AugmentationMap? U.Merge<AugmentationMap[si_tag]>: {})
+	& AllSvgElements
+	& SvgElementProperties<dm_element>
+	>,
 	a_children?: (Node | string)[]
 ) => dm_element;
 
@@ -169,11 +169,14 @@ export type HtmlNodeCreator = <
 >(
 	si_tag: si_tag,
 	h_attrs?: si_tag extends keyof HTMLElementTagNameMap
-		? O.Merge<{
-			[si_event in keyof HTMLElementEventMap as `_${si_event}`]:
-			| Parameters<HTMLElementTagNameMap[si_tag]['addEventListener']>[1]
-			| L.Tail<Parameters<HTMLElementTagNameMap[si_tag]['addEventListener']>>;
-		}, HtmlElementProperties<HTMLElementTagNameMap[si_tag]>>
-		: HtmlElementProperties<HTMLElement>,
+		? {
+			[si_event in keyof HTMLElementEventMap as `_${si_event}`]?:
+			| ((this: HTMLElementTagNameMap[si_tag], d_event: HTMLElementEventMap[si_event]) => any)
+			| [((this: HTMLElementTagNameMap[si_tag], d_event: HTMLElementEventMap[si_event]) => any), options?: boolean | AddEventListenerOptions]
+		} & HtmlElementProperties<HTMLElementTagNameMap[si_tag]>
+		: Record<string,
+			| Parameters<EventTarget['addEventListener']>[1]
+			| L.Tail<Parameters<EventTarget['addEventListener']>>
+		> & HtmlElementProperties<HTMLElement>,
 	a_children?: (Node | string)[]
 ) => si_tag extends keyof HTMLElementTagNameMap? HTMLElementTagNameMap[si_tag]: HTMLElement;
