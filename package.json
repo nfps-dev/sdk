@@ -1,6 +1,6 @@
 {
 	"name": "@nfps.dev/sdk",
-	"version": "0.7.10",
+	"version": "0.8.0",
 	"description": "SDK for NFP development",
 	"keywords": [
 		"nfp",
