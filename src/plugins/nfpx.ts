@@ -9,7 +9,7 @@ import type {
 	AssignmentProperty,
 } from 'estree';
 
-import type {PluginContext} from 'rollup';
+import type {AcornNode, PluginContext} from 'rollup';
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -438,7 +438,19 @@ export function nfpxWindow(gc_nfpm: NfpxWindowConfig): Plugin {
 
 			const b_entry = a_entries.includes(p_file);
 
-			const y_ast = this.parse(sx_code);
+			let y_ast: AcornNode;
+			try {
+				y_ast = this.parse(sx_code);
+			}
+			catch(e_parse) {
+				if(e_parse instanceof Error) {
+					if('number' === typeof (e_parse as {pos?: number}).pos) {
+						return this.error(`Parsing error while transforming ${p_file}:\n${e_parse.message}`, (e_parse as unknown as {pos: number}).pos);
+					}
+				}
+
+				return this.error(`Error while transforming ${p_file}:\n${(e_parse as Error).message}`);
+			}
 
 			let y_scope = attachScopes(y_ast, 'scope');
 

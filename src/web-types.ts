@@ -35,7 +35,11 @@ export type SvgNodeCreator = <
 	dm_element extends SVGElementTagNameMap[si_tag],
 >(
 	si_tag: si_tag,
-	h_attrs?: O.Optional<O.MergeAll<{}, [
+	h_attrs?: O.Optional<O.MergeAll<{
+		[si_event in keyof SVGElementEventMap as `_${si_event}`]:
+		| Parameters<SVGElementTagNameMap[si_tag]['addEventListener']>[1]
+		| L.Tail<Parameters<SVGElementTagNameMap[si_tag]['addEventListener']>>;
+	}, [
 		si_tag extends keyof AugmentationMap? U.Merge<AugmentationMap[si_tag]>: {},
 		AllSvgElements,
 		SvgElementProperties<dm_element>,
@@ -165,7 +169,11 @@ export type HtmlNodeCreator = <
 >(
 	si_tag: si_tag,
 	h_attrs?: si_tag extends keyof HTMLElementTagNameMap
-		? HtmlElementProperties<HTMLElementTagNameMap[si_tag]>
+		? O.Merge<{
+			[si_event in keyof HTMLElementEventMap as `_${si_event}`]:
+			| Parameters<HTMLElementTagNameMap[si_tag]['addEventListener']>[1]
+			| L.Tail<Parameters<HTMLElementTagNameMap[si_tag]['addEventListener']>>;
+		}, HtmlElementProperties<HTMLElementTagNameMap[si_tag]>>
 		: HtmlElementProperties<HTMLElement>,
 	a_children?: (Node | string)[]
 ) => si_tag extends keyof HTMLElementTagNameMap? HTMLElementTagNameMap[si_tag]: HTMLElement;

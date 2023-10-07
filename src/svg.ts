@@ -241,10 +241,10 @@ export async function build(gc_build: BuildConfig): Promise<string> {
 	}) as SvgNodeCreator;
 
 	// html node creator
-	const f_html = ((si_tag, h_attrs, a_children) => {
+	const f_html = ((si_tag, h_attrs: Dict, a_children) => {
 		const dm_elmt = d_doc.createElementNS(P_NS_XHTML, si_tag);
 
-		for(const [si_attr, s_value] of Object.entries(h_attrs as Dict || {})) {
+		for(const [si_attr, s_value] of Object.entries(h_attrs || {})) {
 			dm_elmt.setAttribute(si_attr, s_value);
 		}
 
